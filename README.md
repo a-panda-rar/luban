@@ -1,2 +1,3 @@
-# luban
-useful AI skills
+# 📒 luban 小鲁班 
+整理记录一些有用的，好用的工具，有传统的，有AI的，形式不限，有价值是核心
+
