@@ -48,6 +48,16 @@ lark-cli docs +create --doc-format xml --content "@./src.xml" \
   - `2113 Sheet content copy failed`（内嵌表格）
 - 成功的标志：回查新文档，各类资源块数量与 Step 2 盘点一致（画板/表格会缺失，待补）。
 
+### 大文档（约 >50KB 或图片 >50 张）超时：分块回放
+
+整体 `+create` 会 `server time out error`（媒体复制是同步的，量大必超时）。改分块：
+
+1. 按**顶层元素边界**把 XML 切成 ~12KB 的 chunk（标签栈深度归零处为切点；`img/source/br/hr/col` 视为自闭合）。
+2. `+create --content @chunk_00.xml` 建文档（含 `<title>` 的首块）。
+3. 其余依次 `docs +update --doc <id> --command append --content @chunk_NN.xml`（append = 文末追加，顺序构建正好适用）。
+4. 每个 chunk 检查各自 warnings，克隆失败的块按 Step 4/5 兜底。
+5. 注意：超时重试前先确认没有已建出的半成品文档（搜索标题），避免重复创建。
+
 ## Step 4：兜底 —— 画板（导出节点 + 重建）
 
 ```bash
@@ -64,6 +74,8 @@ lark-cli whiteboard +update --whiteboard-token "<新board_token>" \
   --input_format raw --source @./wb.json --overwrite \
   --idempotent-token "copy-wb-<固定串>" --as user
 ```
+
+**raw 写回报 `2890002 table cell child id not found`**：画板内含"画板表格"节点时，raw 导出会缺失部分 cell 内部子节点（悬空引用）。修复：递归清理所有 `children` 数组中不存在于 nodes 列表的 id（含 `table.cells[].children`），再重新写入。单元格文本是内联的，清理后视觉无损。修复后先导出源/新画板 preview 图对比验证（`+export --output-type preview` 不受导出 ACL 限制，`svg` 会被 ACL 拦截）。
 
 ## Step 5：兜底 —— 内嵌表格（读数据 + 建新表 + 嵌入）
 
